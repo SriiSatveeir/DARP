@@ -56,9 +56,13 @@ def get_area_indices(area, value, inv=False, obstacle=-1):
 class MultiRobotPathPlanner(DARP):
     def __init__(self, nx, ny, notEqualPortions, initial_positions, portions,
                  obs_pos, visualization, MaxIter=80000, CCvariation=0.01,
-                 randomLevel=0.0001, dcells=2, importance=False):
+                 randomLevel=0.0001, dcells=2, importance=False, cell_time = 1.0, turn_penalty = 0.5):
 
         start_time = time.time()
+
+        self.cell_time = cell_time
+        self.turn_penalty = turn_penalty
+
         # Initialize DARP
         self.darp_instance = DARP(nx, ny, notEqualPortions, initial_positions, portions, obs_pos, visualization,
                                   MaxIter=MaxIter, CCvariation=CCvariation,
@@ -190,13 +194,42 @@ class MultiRobotPathPlanner(DARP):
                 image.visualize_paths("Combined Modes")
 
             self.execution_time = time.time() - start_time
-            
+
+            #traversal time
+            self.traversal_times = []
+            for i in range(self.darp_instance.droneNo):
+                # Time = (cells x cell_time) + (turns x turn_penalty)
+                robot_time = (best_case_num_paths[i] * self.cell_time) + (self.best_case.turns[i] * self.turn_penalty)
+                self.traversal_times.append(robot_time)
+
+            #Overall completetion time
+            self.mission_time = max(self.traversal_times)
+            self.min_traversal_time = min(self.traversal_times)
+            self.std_traversal_time = np.std(self.traversal_times) 
+
             print(f'\nResults:')
             print(f'Number of cells per robot: {best_case_num_paths}')
             print(f'Minimum number of cells in robots paths: {min(best_case_num_paths)}')
             print(f'Maximum number of cells in robots paths: {max(best_case_num_paths)}')
             print(f'Average number of cells in robots paths: {np.mean(np.array(best_case_num_paths))}')
+
             print(f'\nTurns Analysis: {self.best_case}')
+
+            print(f'\nTraversal Time Estimates:')
+            print(f'   (Assuming {self.cell_time} time unit per cell, {self.turn_penalty} penalty per turn)')
+            for i in range(self.darp_instance.droneNo):
+                print(f'   Robot {i+1}: {self.traversal_times[i]:.2f} time units')
+            print(f'   \n   Mission completion time or Max traversal time: {self.mission_time:.2f} time units')
+            print(f'   Min traversal time: {self.min_traversal_time:.2f} time units')   # ← ADD
+            print(f'   Standard deviation traversal time: {self.std_traversal_time:.2f} time units')
+            print(f'      (All robots work in parallel)')
+            
+            print(f'\nAlgorithm Performance:')
+            print(f'   Planning algorithm execution time: {self.execution_time:.3f} seconds')
+            print(f'   DARP iterations: {self.iterations}')
+            
+            print(f'\n{"="*60}\n')
+
             
     def CalcRealBinaryReg(self, BinaryRobotRegion, rows, cols):
         temp = np.zeros((2*rows, 2*cols))
@@ -257,7 +290,18 @@ if __name__ == '__main__':
         default=False,
         action='store_true',
         help='Visualize results (default: False)')
+    argparser.add_argument(
+        '-cell_time',
+        default=1.0,
+        type=float,
+        help='Time to traverse one cell (default: 1.0)')
+    argparser.add_argument(
+        '-turn_penalty',
+        default=0.5,
+        type=float,
+        help='Additional time penalty for making a turn (default: 0.5)')
     args = argparser.parse_args()
 
 
-    MultiRobotPathPlanner(args.grid[0], args.grid[1], args.nep, args.in_pos,  args.portions, args.obs_pos, args.vis)
+    MultiRobotPathPlanner(args.grid[0], args.grid[1], args.nep, args.in_pos,  args.portions, args.obs_pos, args.vis, cell_time=args.cell_time, 
+                         turn_penalty=args.turn_penalty)
