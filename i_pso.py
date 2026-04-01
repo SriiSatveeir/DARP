@@ -40,6 +40,7 @@ import random as rnd
 from pso_parameter import *
 from darp_cost_pso import darp_cost, final_run
 import time
+import math
 
 #--- HELPERS (new, not in Nathan's original) ----------------------------------+
 
@@ -57,8 +58,7 @@ def sample_valid_positions(num_robots, grid_size, obs_pos):
 #             if c not in obs_pos:
 #                 outer.append(c)
 #     # pick num_robots unique cell indices that are not obstacles
-#     return rnd.sample(outer, num_robots)   # rnd.sample = no duplicates
-
+#     return rnd.sample(outer, num_robots) 
 
 def resolve_conflicts(positions, obs_pos, grid_size):
     # after rounding, two robots may share a cell or land on obstacle
@@ -113,10 +113,15 @@ class Particle:
             self.err_best_i = self.err_i
 
     # update new particle velocity
-    def update_velocity(self, pos_best_g):
-        w  = 0.5    # constant inertia weight
-        c1 = 1      # cognitive constant
-        c2 = 2      # social constant
+    def update_velocity(self, pos_best_g, current_iter, maxiter):
+        w_max = 0.9    # constant inertia weight
+        w_min = 0.4      # cognitive constant
+
+        A = current_iter*((math.log(w_max) - math.log(w_min))/maxiter) - math.log(w_max)
+        w = math.exp(-A)
+
+        c1 = math.cos(w)
+        c2 = math.sin(w)# social constant
 
         for i in range(0, num_dimensions):
             r1 = random()
@@ -172,7 +177,7 @@ def minimize(costFunc, bounds, num_robots, grid_size, obs_pos,  # CHANGED: added
 
         # cycle through swarm and update velocities and position
         for j in range(0, num_particles):
-            swarm[j].update_velocity(pos_best_g)
+            swarm[j].update_velocity(pos_best_g, i, maxiter)
             swarm[j].update_position(bounds, obs_pos, grid_size)  # CHANGED: pass obs_pos, grid_size
 
         i += 1
@@ -192,6 +197,7 @@ def minimize(costFunc, bounds, num_robots, grid_size, obs_pos,  # CHANGED: added
 #--- RUN ----------------------------------------------------------------------+
 
 if __name__ == "__main__":
+
     # environment settings — edit these to match your solar panel grid
     
     # outer =  [c for c in range(GRID_SIZE) 

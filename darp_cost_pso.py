@@ -52,9 +52,9 @@ def darp_cost(positions):
             portions         = PORTIONS,
             obs_pos          = OBS_POS,
             visualization    = False,       # never visualise during PSO
-            MaxIter          = DARP_MAX_ITER,
+            MaxIter          = DARP_PSO_ITER,
             cell_time        = CELL_TIME,
-            turn_penalty     = TURN_PENALTY
+            turn_time        = TURN_TIME
         )
 
         if not planner.DARP_success:
@@ -68,7 +68,7 @@ def darp_cost(positions):
     except Exception:
         return FAILURE_PENALTY
 
-#--- multirobotpathplanner ----------------------------------------------------------------------+
+#--- multirobotpathplanner final run ----------------------------------------------------------------------+
 
 def final_run(best_positions, visualize=True):
     print("\n" + "="*60)
@@ -83,7 +83,7 @@ def final_run(best_positions, visualize=True):
         visualization=visualize,
         MaxIter=DARP_FINAL_ITER,
         cell_time=CELL_TIME,
-        turn_penalty=TURN_PENALTY
+        turn_time=TURN_TIME
     )
     return planner
 

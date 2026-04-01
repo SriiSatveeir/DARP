@@ -57,8 +57,7 @@ def sample_valid_positions(num_robots, grid_size, obs_pos):
 #             if c not in obs_pos:
 #                 outer.append(c)
 #     # pick num_robots unique cell indices that are not obstacles
-#     return rnd.sample(outer, num_robots)   # rnd.sample = no duplicates
-
+#     return rnd.sample(outer, num_robots)
 
 def resolve_conflicts(positions, obs_pos, grid_size):
     # after rounding, two robots may share a cell or land on obstacle
@@ -114,17 +113,23 @@ class Particle:
 
     # update new particle velocity
     def update_velocity(self, pos_best_g):
-        w  = 0.5    # constant inertia weight
-        c1 = 1      # cognitive constant
-        c2 = 2      # social constant
 
+        if not self.pos_best_i:
+            return
+        
         for i in range(0, num_dimensions):
-            r1 = random()
-            r2 = random()
+            r = random()
 
-            vel_cognitive = c1 * r1 * (self.pos_best_i[i] - self.position_i[i])
-            vel_social    = c2 * r2 * (pos_best_g[i]      - self.position_i[i])
-            self.velocity_i[i] = w * self.velocity_i[i] + vel_cognitive + vel_social
+            if self.pos_best_i[i] != 0 and pos_best_g[i] !=0:
+                ratio = pos_best_g[i] / self.pos_best_i[i]
+            else:
+                ratio = 1.0
+
+            c = 1.0 + ratio
+            w = 1.1 - ratio
+            
+            vel_combined = c * r * (self.pos_best_i[i] + pos_best_g[i] - 2 * self.position_i[i])
+            self.velocity_i[i] = w * self.velocity_i[i] + vel_combined
 
     # update the particle position based off new velocity updates
     def update_position(self, bounds, obs_pos, grid_size):  # CHANGED: added obs_pos, grid_size
@@ -192,6 +197,7 @@ def minimize(costFunc, bounds, num_robots, grid_size, obs_pos,  # CHANGED: added
 #--- RUN ----------------------------------------------------------------------+
 
 if __name__ == "__main__":
+
     # environment settings — edit these to match your solar panel grid
     
     # outer =  [c for c in range(GRID_SIZE) 

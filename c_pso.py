@@ -57,7 +57,7 @@ def sample_valid_positions(num_robots, grid_size, obs_pos):
 #             if c not in obs_pos:
 #                 outer.append(c)
 #     # pick num_robots unique cell indices that are not obstacles
-#     return rnd.sample(outer, num_robots)   # rnd.sample = no duplicates
+#     return rnd.sample(outer, num_robots)
 
 
 def resolve_conflicts(positions, obs_pos, grid_size):
@@ -113,10 +113,20 @@ class Particle:
             self.err_best_i = self.err_i
 
     # update new particle velocity
-    def update_velocity(self, pos_best_g):
-        w  = 0.5    # constant inertia weight
-        c1 = 1      # cognitive constant
-        c2 = 2      # social constant
+    def update_velocity(self, pos_best_g, current_iter, maxiter):
+        # -----TVIW-------
+        w1 = 0.9
+        w2 = 0.5
+        w  = ((w1 - w2) * (maxiter - current_iter)/(maxiter)) + w2
+        
+        #-------TVAC-------  
+        c1i = 2.5
+        c1f = 0.5
+        c2i = 0.5      # cognitive constant
+        c2f = 2.5      # social constant
+        
+        c1 = ((c1i - c1f)*(maxiter - current_iter)/(maxiter)) + c1f
+        c2 = ((c2i - c2f)*(maxiter- current_iter)/(maxiter)) + c2f
 
         for i in range(0, num_dimensions):
             r1 = random()
@@ -172,7 +182,7 @@ def minimize(costFunc, bounds, num_robots, grid_size, obs_pos,  # CHANGED: added
 
         # cycle through swarm and update velocities and position
         for j in range(0, num_particles):
-            swarm[j].update_velocity(pos_best_g)
+            swarm[j].update_velocity(pos_best_g, i, maxiter)
             swarm[j].update_position(bounds, obs_pos, grid_size)  # CHANGED: pass obs_pos, grid_size
 
         i += 1
@@ -192,6 +202,7 @@ def minimize(costFunc, bounds, num_robots, grid_size, obs_pos,  # CHANGED: added
 #--- RUN ----------------------------------------------------------------------+
 
 if __name__ == "__main__":
+
     # environment settings — edit these to match your solar panel grid
     
     # outer =  [c for c in range(GRID_SIZE) 

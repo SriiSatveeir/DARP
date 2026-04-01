@@ -56,12 +56,12 @@ def get_area_indices(area, value, inv=False, obstacle=-1):
 class MultiRobotPathPlanner(DARP):
     def __init__(self, nx, ny, notEqualPortions, initial_positions, portions,
                  obs_pos, visualization, MaxIter=80000, CCvariation=0.01,
-                 randomLevel=0.0001, dcells=2, importance=False, cell_time = 1.0, turn_penalty = 0.5):
+                 randomLevel=0.0001, dcells=2, importance=False, cell_time = 1.0, turn_time = 0.5):
 
         start_time = time.time()
 
         self.cell_time = cell_time
-        self.turn_penalty = turn_penalty
+        self.turn_time = turn_time
 
         # Initialize DARP
         self.darp_instance = DARP(nx, ny, notEqualPortions, initial_positions, portions, obs_pos, visualization,
@@ -198,8 +198,8 @@ class MultiRobotPathPlanner(DARP):
             #traversal time
             self.traversal_times = []
             for i in range(self.darp_instance.droneNo):
-                # Time = (cells x cell_time) + (turns x turn_penalty)
-                robot_time = (best_case_num_paths[i] * self.cell_time) + (self.best_case.turns[i] * self.turn_penalty)
+                # Time = (cells x cell_time) + (turns x turn_time)
+                robot_time = (best_case_num_paths[i] * self.cell_time) + (self.best_case.turns[i] * self.turn_time)
                 self.traversal_times.append(robot_time)
 
             #Overall completetion time
@@ -216,16 +216,13 @@ class MultiRobotPathPlanner(DARP):
             print(f'\nTurns Analysis: {self.best_case}')
 
             print(f'\nTraversal Time Estimates:')
-            print(f'   (Assuming {self.cell_time} time unit per cell, {self.turn_penalty} penalty per turn)')
+            print(f'   (Assuming {self.cell_time} seconds per cell and {self.turn_time} seconds per turn)')
             for i in range(self.darp_instance.droneNo):
-                print(f'   Robot {i+1}: {self.traversal_times[i]:.2f} time units')
-            print(f'   \n   Mission completion time or Max traversal time: {self.mission_time:.2f} time units')
-            print(f'   Min traversal time: {self.min_traversal_time:.2f} time units')   # ← ADD
-            print(f'   Standard deviation traversal time: {self.std_traversal_time:.2f} time units')
-            print(f'      (All robots work in parallel)')
+                print(f'   Robot {i+1}: {self.traversal_times[i]:.2f} seconds')
+            print(f'   \n   Mission completion time or Max traversal time: {self.mission_time:.2f} seconds')
+            print(f'   Min traversal time: {self.min_traversal_time:.2f} seconds')   # ← ADD
+            print(f'   Standard deviation traversal time: {self.std_traversal_time:.2f} seconds')
             
-            print(f'\nAlgorithm Performance:')
-            print(f'   Planning algorithm execution time: {self.execution_time:.3f} seconds')
             print(f'   DARP iterations: {self.iterations}')
             
             print(f'\n{"="*60}\n')
@@ -296,7 +293,7 @@ if __name__ == '__main__':
         type=float,
         help='Time to traverse one cell (default: 1.0)')
     argparser.add_argument(
-        '-turn_penalty',
+        '-turn_time',
         default=0.5,
         type=float,
         help='Additional time penalty for making a turn (default: 0.5)')
@@ -304,4 +301,4 @@ if __name__ == '__main__':
 
 
     MultiRobotPathPlanner(args.grid[0], args.grid[1], args.nep, args.in_pos,  args.portions, args.obs_pos, args.vis, cell_time=args.cell_time, 
-                         turn_penalty=args.turn_penalty)
+                         turn_time=args.turn_time)
