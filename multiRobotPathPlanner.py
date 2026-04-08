@@ -8,6 +8,7 @@ from Visualization import visualize_paths
 import sys
 import argparse
 from turns import turns
+from traversal import traversal
 from PIL import Image
 import time
 
@@ -56,7 +57,7 @@ def get_area_indices(area, value, inv=False, obstacle=-1):
 class MultiRobotPathPlanner(DARP):
     def __init__(self, nx, ny, notEqualPortions, initial_positions, portions,
                  obs_pos, visualization, MaxIter=80000, CCvariation=0.01,
-                 randomLevel=0.0001, dcells=2, importance=False, cell_time = 1.0, turn_time = 0.5):
+                 randomLevel=0.0001, dcells=2, importance=False, cell_time = 1.0, turn_time = 0.5, verbose=True):
 
         start_time = time.time()
 
@@ -67,14 +68,15 @@ class MultiRobotPathPlanner(DARP):
         self.darp_instance = DARP(nx, ny, notEqualPortions, initial_positions, portions, obs_pos, visualization,
                                   MaxIter=MaxIter, CCvariation=CCvariation,
                                   randomLevel=randomLevel, dcells=dcells,
-                                  importance=importance)
+                                  importance=importance, verbose = verbose)
 
         # Divide areas based on robots initial positions
         self.DARP_success , self.iterations = self.darp_instance.divideRegions()
 
         # Check if solution was found
         if not self.DARP_success:
-            print("DARP did not manage to find a solution for the given configuration!")
+            if verbose:
+                print("DARP did not manage to find a solution for the given configuration!")
         else:
             # Iterate for 4 different ways to join edges in MST
             self.mode_to_drone_turns = []
@@ -203,29 +205,26 @@ class MultiRobotPathPlanner(DARP):
                 self.traversal_times.append(robot_time)
 
             #Overall completetion time
-            self.mission_time = max(self.traversal_times)
-            self.min_traversal_time = min(self.traversal_times)
-            self.std_traversal_time = np.std(self.traversal_times) 
+            self.traversal_stats = traversal(self.traversal_times)
+            self.mission_time = self.traversal_stats.max
+            self.min_traversal_time = self.traversal_stats.min
+            self.std_traversal_time = self.traversal_stats.std
 
-            print(f'\nResults:')
-            print(f'Number of cells per robot: {best_case_num_paths}')
-            print(f'Minimum number of cells in robots paths: {min(best_case_num_paths)}')
-            print(f'Maximum number of cells in robots paths: {max(best_case_num_paths)}')
-            print(f'Average number of cells in robots paths: {np.mean(np.array(best_case_num_paths))}')
+            if verbose:
+                print(f'\nResults:')
+                print(f'Number of cells per robot: {best_case_num_paths}')
+                print(f'Minimum number of cells in robots paths: {min(best_case_num_paths)}')
+                print(f'Maximum number of cells in robots paths: {max(best_case_num_paths)}')
+                print(f'Average number of cells in robots paths: {np.mean(np.array(best_case_num_paths))}')
 
-            print(f'\nTurns Analysis: {self.best_case}')
+                print(f'\nTurns Analysis: {self.best_case}')
 
-            print(f'\nTraversal Time Estimates:')
-            print(f'   (Assuming {self.cell_time} seconds per cell and {self.turn_time} seconds per turn)')
-            for i in range(self.darp_instance.droneNo):
-                print(f'   Robot {i+1}: {self.traversal_times[i]:.2f} seconds')
-            print(f'   \n   Mission completion time or Max traversal time: {self.mission_time:.2f} seconds')
-            print(f'   Min traversal time: {self.min_traversal_time:.2f} seconds')   # ← ADD
-            print(f'   Standard deviation traversal time: {self.std_traversal_time:.2f} seconds')
-            
-            print(f'   DARP iterations: {self.iterations}')
-            
-            print(f'\n{"="*60}\n')
+                print(f'\nTraversal Time Estimates:')
+                print(f'   (Assuming {self.cell_time} seconds per cell and {self.turn_time} seconds per turn)')
+                print(f'{self.traversal_stats}')
+                print(f' DARP iterations: {self.iterations}')
+                
+                print(f'\n{"="*60}\n')
 
             
     def CalcRealBinaryReg(self, BinaryRobotRegion, rows, cols):
@@ -249,6 +248,7 @@ class MultiRobotPathPlanner(DARP):
             k.performKruskal()
             MSTs.append(k.mst)
         return MSTs
+    
 
 
 if __name__ == '__main__':

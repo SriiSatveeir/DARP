@@ -120,6 +120,9 @@ class Particle:
         self.pos_best_i = []        # best position individual
         self.err_best_i = -1        # best error individual
         self.err_i      = -1        # error individual
+        self.w_i = 0.9
+        self.stag = 0
+        self.previous_best_i = None
 
         for i in range(0, num_dimensions):
             self.velocity_i.append(uniform(-1, 1))
@@ -134,20 +137,25 @@ class Particle:
             self.err_best_i = self.err_i
 
     # update new particle velocity
-    def update_velocity(self, pos_best_g, current_iter):
-        # -----TVIW-------
-        w1 = 0.9
-        w2 = 0.5
-        w  = ((w1 - w2) * (MAXITER - current_iter)/(MAXITER)) + w2
+    def update_velocity(self, pos_best_g, t, M=5, wstart = 0.9, wend=0.4):
+        c1 = 2.0      # cognitive constant
+        c2 = 2.0      # social constant
+
+        if t == 0 or self.previous_best_i  is None:
+            self.w_i = 0.9
+        else:
+            change = self.previous_best_i - self.err_best_i
+            if change > 0:
+                self.w_i = min(change / self.previous_best_i, 0.9)
+                self.stag = 0
+            else:
+                self.w_i = 0
+                self.stag +=1
+            if self.stag >= M:
+                self.w_i = wstart - (wstart - wend) * t / MAXITER
+                self.stag = 0
         
-        #-------TVAC-------  
-        c1i = 2.5
-        c1f = 0.5
-        c2i = 0.5      # cognitive constant
-        c2f = 2.5      # social constant
-        
-        c1 = ((c1i - c1f)*(MAXITER - current_iter)/(MAXITER)) + c1f
-        c2 = ((c2i - c2f)*(MAXITER - current_iter)/(MAXITER)) + c2f
+        self.previous_best_i = self.err_best_i
 
         for i in range(0, num_dimensions):
             r1 = random()
@@ -155,7 +163,7 @@ class Particle:
 
             vel_cognitive = c1 * r1 * (self.pos_best_i[i] - self.position_i[i])
             vel_social    = c2 * r2 * (pos_best_g[i]      - self.position_i[i])
-            self.velocity_i[i] = w * self.velocity_i[i] + vel_cognitive + vel_social
+            self.velocity_i[i] = self.w_i * self.velocity_i[i] + vel_cognitive + vel_social
 
     # update the particle position based off new velocity updates
     def update_position(self, outer_cells):  # CHANGED: added obs_pos, grid_size
@@ -168,6 +176,7 @@ class Particle:
              self.position_i[i] = 0
             self.position_i[i] = int(round(self.position_i[i]))
         self.position_i = resolve_conflicts(self.position_i, outer_cells)
+
 
         #     if self.position_i[i] > bounds[i][1]:
         #         self.position_i[i] = bounds[i][1]
@@ -196,14 +205,6 @@ def minimize(costFunc, verbose=False):
     for i in range(0, NUM_PARTICLES):
         x0 = sample_valid_positions(outer_cells)  # CHANGED: each particle gets its own random valid start
         swarm.append(Particle(x0))
-        
-    #intial particle positions
-    #  print("\nInitial particle positions (outer cell indices):")
-    # for i, particle in enumerate(swarm):
-    #     real_positions = [outer_cells[int(p)] for p in particle.position_i]
-    #     real_positions_brac = [(p // NY, p % NY) for p in real_positions]
-    #     print(f"  Particle {i+1}: {real_positions_brac}")
-    # print()
 
     # begin optimization loop
     i = 0
@@ -244,7 +245,6 @@ def minimize(costFunc, verbose=False):
 #--- RUN ----------------------------------------------------------------------+
 
 if __name__ == "__main__":
-
     # environment settings — edit these to match your solar panel grid
     
     # outer =  [c for c in range(GRID_SIZE) 
@@ -255,8 +255,8 @@ if __name__ == "__main__":
 
     # bounds = [(0, GRID_SIZE - 1)] * NUM_ROBOTS
 
-    best_fitness, best_positions, pso_time, history, converge_iter = minimize( costFunc = darp_cost, verbose = True)
-
+    best_fitness, best_positions, pso_time, history, converge_iter = minimize(costFunc = darp_cost, verbose = True)
+    
     outer_cells = get_outer_cells()
     real_positions = [outer_cells[int(p)] for p in best_positions]
     real_positions_brac = [(p // NY, p % NY) for p in real_positions]

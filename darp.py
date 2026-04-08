@@ -87,7 +87,7 @@ class DARP:
     def __init__(self, nx, ny, notEqualPortions, given_initial_positions, given_portions, obstacles_positions,
                  visualization, MaxIter=80000, CCvariation=0.01,
                  randomLevel=0.0001, dcells=2,
-                 importance=False):
+                 importance=False, verbose=True):
 
         self.rows = nx
         self.cols = ny
@@ -101,12 +101,12 @@ class DARP:
         self.importance = importance
         self.notEqualPortions = notEqualPortions
     
-
-        print("\nInitial Conditions Defined:")
-        print("Grid Dimensions:", nx, ny)
-        print("Number of Robots:", len(self.initial_positions))
-        print("Initial Robots' positions", self.initial_positions)
-        print("Portions for each Robot:", self.portions, "\n")
+        if verbose:
+            print("\nInitial Conditions Defined:")
+            print("Grid Dimensions:", nx, ny)
+            print("Number of Robots:", len(self.initial_positions))
+            print("Initial Robots' positions", self.initial_positions)
+            print("Portions for each Robot:", self.portions, "\n")
 
         self.droneNo = len(self.initial_positions)
         self.A = np.zeros((self.rows, self.cols))

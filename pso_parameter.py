@@ -5,9 +5,9 @@ GRID_SIZE = NX*NY
 
 # ── Robots ────────────────────────────────────────
 NUM_ROBOTS = 3
-OBS_POS = [5,6,7] #obstacle position
+OBS_POS = [] #obstacle position
 PORTIONS = [1/3, 1/3, 1/3] # porition per robot
-NOT_EQUAL = True # set True if using unequal portions above
+NOT_EQUAL = False # set True if using unequal portions above
 
 # ── DARP ──────────────────────────────────────────
 DARP_PSO_ITER = 2000  #for PSO
@@ -26,4 +26,4 @@ NUM_PARTICLES = 10
 MAXITER = 15
 
 # ── Penalties ─────────────────────────────────────
-FAILURE_PENALTY = 1000.0
+FAILURE_PENALTY = NX * NY * CELL_TIME * 10

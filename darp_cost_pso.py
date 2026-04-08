@@ -1,6 +1,7 @@
 from multiRobotPathPlanner import MultiRobotPathPlanner
 from pso_parameter import *
 
+
 # --- environment settings (must match what you set in pso.py) ----------------
 
 # NX             = 10
@@ -18,6 +19,10 @@ from pso_parameter import *
 
 # # -----------------------------------------------------------------------------
 
+def get_outer_cells():
+    obs_set = set(OBS_POS)
+    return [c for c in range (NX*NY)
+            if (c // NY in (0, NX-1) or c % NY in (0, NY-1)) and c not in obs_set]
 
 def darp_cost(positions):
     """
@@ -34,27 +39,37 @@ def darp_cost(positions):
     float : mission_time — time for all robots to finish (slowest robot).
             Lower is better. Returns FAILURE_PENALTY if DARP cannot solve.
     """
+    
+    outer_cells = get_outer_cells()
 
-    # constraint checks before running DARP (fast)
-    if len(set(positions)) != len(positions):   # duplicate positions
+    real_positions = [outer_cells[int(p)] for p in positions]
+
+    if len(set(real_positions)) != len(real_positions):
         return FAILURE_PENALTY
-    if any(p in OBS_POS for p in positions):    # position on obstacle
+    if any(p in OBS_POS for p in real_positions):
         return FAILURE_PENALTY
-    if any(p < 0 or p >= NX * NY for p in positions):  # outside grid
-        return FAILURE_PENALTY
+    
+    # # constraint checks before running DARP (fast)
+    # if len(set(positions)) != len(positions):   # duplicate positions
+    #     return FAILURE_PENALTY
+    # if any(p in OBS_POS for p in positions):    # position on obstacle
+    #     return FAILURE_PENALTY
+    # if any(p < 0 or p >= NX * NY for p in positions):  # outside grid
+    #     return FAILURE_PENALTY
 
     try:
         planner = MultiRobotPathPlanner(
             nx               = NX,
             ny               = NY,
             notEqualPortions = NOT_EQUAL,
-            initial_positions= [int(p) for p in positions],
+            initial_positions= real_positions,
             portions         = PORTIONS,
             obs_pos          = OBS_POS,
             visualization    = False,       # never visualise during PSO
             MaxIter          = DARP_PSO_ITER,
             cell_time        = CELL_TIME,
-            turn_time        = TURN_TIME
+            turn_time        = TURN_TIME,
+            verbose          = False
         )
 
         if not planner.DARP_success:
@@ -71,13 +86,18 @@ def darp_cost(positions):
 #--- multirobotpathplanner final run ----------------------------------------------------------------------+
 
 def final_run(best_positions, visualize=True):
+
     print("\n" + "="*60)
     print("FINAL HIGH-QUALITY RUN WITH BEST POSITIONS")
     print("="*60)
+
+    outer_cells = get_outer_cells()
+    real_positions = [outer_cells[int(p)] for p in best_positions]
+    
     planner = MultiRobotPathPlanner(
         nx=NX, ny=NY,
         notEqualPortions=NOT_EQUAL,
-        initial_positions=[int(p) for p in best_positions],
+        initial_positions=real_positions,
         portions=PORTIONS,
         obs_pos=OBS_POS,
         visualization=visualize,
