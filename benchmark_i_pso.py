@@ -12,6 +12,7 @@
 from random import random
 from random import uniform
 import time
+import math
 
 #--- MAIN ---------------------------------------------------------------------+
 
@@ -24,7 +25,7 @@ class Particle:
         self.err_i=float('inf')              # error individual
 
         for i in range(0,num_dimensions):
-            v_max = (bounds[i][1] - bounds[i][0]) * 1
+            v_max = (bounds[i][1] - bounds[i][0]) * 0.2
             self.velocity_i.append(uniform(-v_max, v_max))
             self.position_i.append(uniform(bounds[i][0], bounds[i][1]))
 
@@ -38,10 +39,17 @@ class Particle:
             self.err_best_i=self.err_i
                     
     # update new particle velocity
-    def update_velocity(self,pos_best_g, bounds):
-        w=0.5       # constant inertia weight (how much to weigh the previous velocity)
-        c1=1        # cognative constant
-        c2=2        # social constant
+    def update_velocity(self,pos_best_g, bounds, current_iter, maxiter):
+        w_max = 0.9    # constant inertia weight
+        w_min = 0.4      # cognitive constant
+
+        A = current_iter*((math.log(w_max) - math.log(w_min))/maxiter) - math.log(w_max)
+        w = math.exp(-A)
+
+        w = max(w_min, min(w, 0.999))
+
+        c1 = math.cos(w)
+        c2 = math.sin(w)
         
         for i in range(num_dimensions):
             r1=random()
@@ -51,7 +59,7 @@ class Particle:
             vel_social=c2*r2*(pos_best_g[i]-self.position_i[i])
             self.velocity_i[i]=w*self.velocity_i[i]+vel_cognitive+vel_social
 
-            v_max = (bounds[i][1] - bounds[i][0]) * 1
+            v_max = (bounds[i][1] - bounds[i][0]) * 0.2
             self.velocity_i[i] = max(-v_max, min(v_max, self.velocity_i[i]))
 
     # update the particle position based off new velocity updates
@@ -63,7 +71,7 @@ class Particle:
             if self.position_i[i]>bounds[i][1]:
                 self.position_i[i]=bounds[i][1]
 
-            # adjust minimum position if neseccary
+            # adjust minimum position if necessary
             if self.position_i[i]<bounds[i][0]:
                 self.position_i[i]=bounds[i][0]
         
@@ -97,7 +105,7 @@ def minimize(costFunc, bounds, num_particles, maxiter, verbose=False):
         
         # cycle through swarm and update velocities and position
         for p in swarm:
-            p.update_velocity(pos_best_g, bounds)
+            p.update_velocity(pos_best_g, bounds, i, maxiter)
             p.update_position(bounds)
 
         history.append(err_best_g)

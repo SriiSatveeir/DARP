@@ -59,13 +59,24 @@ def sample_valid_positions(outer_cells):
 def resolve_conflicts(position, outer_cells):
     taken = set()
     result = []
+    available = set(range(len(outer_cells)))
+
     for p in position:
-        p = int(round(p))
-        p = max(0, min(len(outer_cells)-1, p))  # clamp to valid index range
-        while p in taken:
-            p = (p + 1) % len(outer_cells)  # nudge to next free index
-        result.append(p)
-        taken.add(p)
+        p = max(0, min(len(outer_cells)-1, p))
+
+        if p not in taken:
+            result.append(p)
+            taken.add(p)
+        else:
+            choices = list(available - taken)
+            if choices:
+                new_p = rnd.choice(choices)
+                result.append(new_p)
+                taken.add(new_p)
+            else:
+                result.append(p)
+                taken.add(p)
+
     return result
 
 #--- OLD CODE ---------------------------------------------------------------------+
@@ -114,22 +125,26 @@ def resolve_conflicts(position, outer_cells):
 #--- MAIN ---------------------------------------------------------------------+
 
 class Particle:
-    def __init__(self, x0):
+    def __init__(self, x0, outer_cells):
         self.position_i = []        # particle position
         self.velocity_i = []        # particle velocity
-        self.pos_best_i = []        # best position individual
-        self.err_best_i = -1        # best error individual
-        self.err_i      = -1        # error individual
+        self.pos_best_i = []       # best position individual
+        self.err_best_i = float('inf')        # best error individual
+        self.err_i      = float('inf')        # error individual
+        self.outer_cells = outer_cells
 
         for i in range(0, num_dimensions):
-            self.velocity_i.append(uniform(-1, 1))
+            v_max = 0.2 * len(self.outer_cells)
+            self.velocity_i.append(uniform(-v_max, v_max))
             self.position_i.append(x0[i])
 
     # evaluate current fitness
     def evaluate(self, costFunc):
+        discrete_pos = [int(round(p)) for p in self.position_i]
+        discrete_pos = resolve_conflicts(discrete_pos, self.outer_cells)
         self.err_i = costFunc(self.position_i)
 
-        if self.err_i < self.err_best_i or self.err_best_i == -1:
+        if self.err_i < self.err_best_i:
             self.pos_best_i = self.position_i.copy()
             self.err_best_i = self.err_i
 
@@ -147,6 +162,9 @@ class Particle:
             vel_social    = c2 * r2 * (pos_best_g[i]      - self.position_i[i])
             self.velocity_i[i] = w * self.velocity_i[i] + vel_cognitive + vel_social
 
+            v_max = 0.2 * len(self.outer_cells)
+            self.velocity_i[i] = max(-v_max, min(v_max, self.velocity_i[i]))
+
     # update the particle position based off new velocity updates
     def update_position(self, outer_cells):  # CHANGED: added obs_pos, grid_size
         for i in range(0, num_dimensions):
@@ -155,9 +173,9 @@ class Particle:
             if self.position_i[i] > len(outer_cells)-1:
                 self.position_i[i] = len(outer_cells)-1
             if self.position_i[i] < 0:
-             self.position_i[i] = 0
-            self.position_i[i] = int(round(self.position_i[i]))
-        self.position_i = resolve_conflicts(self.position_i, outer_cells)
+                self.position_i[i] = 0
+        #     self.position_i[i] = int(round(self.position_i[i]))
+        # self.position_i = resolve_conflicts(self.position_i, outer_cells)
 
             # if self.position_i[i] > bounds[i][1]:
             #     self.position_i[i] = bounds[i][1]
@@ -174,7 +192,7 @@ def minimize(costFunc, verbose=False):
     global num_dimensions
     num_dimensions = NUM_ROBOTS     # CHANGED: one dimension = one robot starting position
 
-    err_best_g = -1                 # best error for group
+    err_best_g = float('inf')                 # best error for group
     pos_best_g = []                 # best position for group
     
     outer_cells = get_outer_cells()
@@ -185,7 +203,7 @@ def minimize(costFunc, verbose=False):
     swarm = []
     for i in range(0, NUM_PARTICLES):
         x0 = sample_valid_positions(outer_cells)  # CHANGED: each particle gets its own random valid start
-        swarm.append(Particle(x0))
+        swarm.append(Particle(x0, outer_cells))
 
     # intial particle positions
     # print("\nInitial particle positions (outer cell indices):")
@@ -203,7 +221,7 @@ def minimize(costFunc, verbose=False):
         for j in range(0, NUM_PARTICLES):
             swarm[j].evaluate(costFunc)
 
-            if swarm[j].err_i < err_best_g or err_best_g == -1:
+            if swarm[j].err_i < err_best_g:
                 pos_best_g = list(swarm[j].position_i)
                 err_best_g = float(swarm[j].err_i)
 

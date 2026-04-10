@@ -38,18 +38,17 @@ class Particle:
             self.err_best_i=self.err_i
                     
     # update new particle velocity
-    def update_velocity(self,pos_best_g, bounds):
-        w=0.5       # constant inertia weight (how much to weigh the previous velocity)
-        c1=1        # cognative constant
-        c2=2        # social constant
+    def update_velocity(self,pos_best_g, bounds, w0):
+        c1 = 2.0      # cognitive constant
+        c2 = 2.0      # social constant
         
         for i in range(num_dimensions):
             r1=random()
             r2=random()
             
-            vel_cognitive=c1*r1*(self.pos_best_i[i]-self.position_i[i])
-            vel_social=c2*r2*(pos_best_g[i]-self.position_i[i])
-            self.velocity_i[i]=w*self.velocity_i[i]+vel_cognitive+vel_social
+            vel_cognitive = c1 * r1 * (self.pos_best_i[i] - self.position_i[i])
+            vel_social    = c2 * r2 * (pos_best_g[i]      - self.position_i[i])
+            self.velocity_i[i] = w0 * self.velocity_i[i] + vel_cognitive + vel_social
 
             v_max = (bounds[i][1] - bounds[i][0]) * 1
             self.velocity_i[i] = max(-v_max, min(v_max, self.velocity_i[i]))
@@ -68,7 +67,7 @@ class Particle:
                 self.position_i[i]=bounds[i][0]
         
         
-def minimize(costFunc, bounds, num_particles, maxiter, verbose=False):
+def minimize(costFunc, bounds, num_particles, maxiter, w=0.9, u=1.0005, verbose=False):
     start = time.time()
     global num_dimensions
 
@@ -95,9 +94,12 @@ def minimize(costFunc, bounds, num_particles, maxiter, verbose=False):
                 pos_best_g=list(p.position_i)
                 err_best_g=float(p.err_i)
         
+        w0 = w * (u ** (-i))
+        w0 = min(1.0, max(0.0, w0))
+        
         # cycle through swarm and update velocities and position
         for p in swarm:
-            p.update_velocity(pos_best_g, bounds)
+            p.update_velocity(pos_best_g, bounds, w0)
             p.update_position(bounds)
 
         history.append(err_best_g)

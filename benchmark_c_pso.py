@@ -38,18 +38,29 @@ class Particle:
             self.err_best_i=self.err_i
                     
     # update new particle velocity
-    def update_velocity(self,pos_best_g, bounds):
-        w=0.5       # constant inertia weight (how much to weigh the previous velocity)
-        c1=1        # cognative constant
-        c2=2        # social constant
+    def update_velocity(self,pos_best_g, bounds, current_iter, maxiter):
+         # -----TVIW-------
+        w1 = 0.9
+        w2 = 0.4
+        w  = ((w1 - w2) * (maxiter - current_iter)/(maxiter)) + w2
+        
+        #-------TVAC-------  
+        c1i = 2.5
+        c1f = 0.5
+        c2i = 0.5      # cognitive constant
+        c2f = 2.5      # social constant
+        
+        c1 = ((c1i - c1f)*(maxiter - current_iter)/(maxiter)) + c1f
+        c2 = ((c2i - c2f)*(maxiter - current_iter)/(maxiter)) + c2f
+
         
         for i in range(num_dimensions):
             r1=random()
             r2=random()
             
-            vel_cognitive=c1*r1*(self.pos_best_i[i]-self.position_i[i])
-            vel_social=c2*r2*(pos_best_g[i]-self.position_i[i])
-            self.velocity_i[i]=w*self.velocity_i[i]+vel_cognitive+vel_social
+            vel_cognitive = c1 * r1 * (self.pos_best_i[i] - self.position_i[i])
+            vel_social    = c2 * r2 * (pos_best_g[i]      - self.position_i[i])
+            self.velocity_i[i] = w * self.velocity_i[i] + vel_cognitive + vel_social
 
             v_max = (bounds[i][1] - bounds[i][0]) * 1
             self.velocity_i[i] = max(-v_max, min(v_max, self.velocity_i[i]))
@@ -97,7 +108,7 @@ def minimize(costFunc, bounds, num_particles, maxiter, verbose=False):
         
         # cycle through swarm and update velocities and position
         for p in swarm:
-            p.update_velocity(pos_best_g, bounds)
+            p.update_velocity(pos_best_g, bounds, i, maxiter)
             p.update_position(bounds)
 
         history.append(err_best_g)
