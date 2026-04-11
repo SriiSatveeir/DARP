@@ -1,5 +1,5 @@
 from multiRobotPathPlanner import MultiRobotPathPlanner
-from pso_parameter import *
+from pso_parameter import NX, NY, OBS_POS, NUM_ROBOTS, PORTIONS, NOT_EQUAL, DARP_PSO_ITER, DARP_FINAL_ITER, CELL_TIME, TURN_TIME, FAILURE_PENALTY
 
 
 # --- environment settings (must match what you set in pso.py) ----------------
@@ -18,11 +18,41 @@ from pso_parameter import *
 # FAILURE_PENALTY = 1000.0            # returned if DARP fails or positions are invalid
 
 # # -----------------------------------------------------------------------------
+OBS_SET    = set(OBS_POS)
+OUTER_CELLS = [c for c in range(NX * NY)
+               if (c // NY in (0, NX-1) or c % NY in (0, NY-1))
+               and c not in OBS_SET]
 
 def get_outer_cells():
-    obs_set = set(OBS_POS)
-    return [c for c in range (NX*NY)
-            if (c // NY in (0, NX-1) or c % NY in (0, NY-1)) and c not in obs_set]
+    return OUTER_CELLS
+
+def validate_config(outer_cells):
+    """
+    Check that the problem is solvable before running PSO.
+    Exits early with a clear message if not.
+    """
+    obs_on_border = [c for c in OBS_POS
+                     if c // NY in (0, NX-1) or c % NY in (0, NY-1)]
+
+    available = len(outer_cells)   # obstacles already excluded
+
+    print(f"Grid                : {NX} x {NY}")
+    print(f"Outer cells total   : {2*NX + 2*NY - 4}")
+    print(f"Obstacles on border : {len(obs_on_border)}  {obs_on_border}")
+    print(f"Available positions : {available}")
+    print(f"Robots needed       : {NUM_ROBOTS}")
+
+    if available < NUM_ROBOTS:
+        raise ValueError(
+            f"Not enough valid outer cells ({available}) "
+            f"for {NUM_ROBOTS} robots. "
+            f"Reduce NUM_ROBOTS or remove border obstacles."
+        )
+
+    # warn if it's tight — leaves very little diversity for PSO
+    if available < NUM_ROBOTS * 3:
+        print(f"WARNING: only {available} positions for {NUM_ROBOTS} robots "
+              f"— PSO diversity will be limited.")
 
 def darp_cost(positions):
     """
@@ -31,8 +61,8 @@ def darp_cost(positions):
     Parameters
     ----------
     positions : list of int
-        Robot starting cell indices e.g. [3, 45, 82]
-        Robot 1 starts at cell 3, Robot 2 at cell 45, Robot 3 at cell 82.
+        Outer-cell indices e.g. [3, 27, 41]
+        Converted to real grid cells via outer_cells[p] before passing to DARP.
 
     Returns
     -------
@@ -40,13 +70,12 @@ def darp_cost(positions):
             Lower is better. Returns FAILURE_PENALTY if DARP cannot solve.
     """
     
-    outer_cells = get_outer_cells()
 
-    real_positions = [outer_cells[int(p)] for p in positions]
+    real_positions = [OUTER_CELLS[int(p)] for p in positions]
 
     if len(set(real_positions)) != len(real_positions):
         return FAILURE_PENALTY
-    if any(p in OBS_POS for p in real_positions):
+    if any(p in OBS_SET for p in real_positions):
         return FAILURE_PENALTY
     
     # # constraint checks before running DARP (fast)
@@ -91,8 +120,7 @@ def final_run(best_positions, visualize=True):
     print("FINAL HIGH-QUALITY RUN WITH BEST POSITIONS")
     print("="*60)
 
-    outer_cells = get_outer_cells()
-    real_positions = [outer_cells[int(p)] for p in best_positions]
+    real_positions = [OUTER_CELLS[int(p)] for p in best_positions]
     
     planner = MultiRobotPathPlanner(
         nx=NX, ny=NY,

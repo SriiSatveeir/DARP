@@ -43,12 +43,6 @@ import time
 import numpy as np
 
 #--- HELPERS (new, not in Nathan's original) ----------------------------------+
-
-# def sample_valid_positions(num_robots, grid_size, obs_pos):
-#     # pick num_robots unique cell indices that are not obstacles
-#     valid_cells = [c for c in range(grid_size) if c not in obs_pos]
-#     return rnd.sample(valid_cells, num_robots)   # rnd.sample = no duplicates
-
 def build_outer_coords(outer_cells): #Convert the outer cell indices to (row,col) format
     coords = []
     for cell in outer_cells:
@@ -73,7 +67,12 @@ def snap_to_outer_cells(robot_positions, outer_coords, outer_cells): #assign out
                     break
     return result
 
-
+        
+    
+# def sample_valid_positions(num_robots, grid_size, obs_pos):
+#     # pick num_robots unique cell indices that are not obstacles
+#     valid_cells = [c for c in range(grid_size) if c not in obs_pos]
+#     return rnd.sample(valid_cells, num_robots)   # rnd.sample = no duplicates
 
 # def get_outer_cells():
 #     obs_set = set(OBS_POS)
@@ -158,9 +157,6 @@ class Particle:
         chosen_indices = rnd.sample(range(n), NUM_ROBOTS)
         self.position_i = []        # particle position
         self.velocity_i = []        # particle velocity
-        self.w_i = 0.9
-        self.stag = 0
-        self.previous_best_i = None
 
         for idx in chosen_indices:
             row, col = outer_coords[idx]
@@ -179,7 +175,7 @@ class Particle:
 
         self.err_best_i = float('inf')        # best error individual
         self.err_i      = float('inf')        # error individual
-
+        
     def _to_pairs(self, flat_list): #Convert flat [r0, c0, r1, c1, ...] into [[r0,c0], [r1,c1], ...]
         pairs = []
         for i in range(0, len(flat_list), 2):
@@ -198,41 +194,24 @@ class Particle:
             self.err_best_i = self.err_i
 
     # update new particle velocity
-    def update_velocity(self, pos_best_g, t, M=5, wstart = 0.9, wend=0.4):
+    def update_velocity(self, pos_best_g, w0):
         c1 = 2.0      # cognitive constant
         c2 = 2.0      # social constant
 
-        if t == 0 or self.previous_best_i  is None or self.previous_best_i == float('inf'):
-            self.w_i = 0.9
-        else:
-            change = self.previous_best_i - self.err_best_i
-            if change > 0:
-                self.w_i = min(change / self.previous_best_i, 0.9)
-                self.stag = 0
-            else:
-                self.w_i = 0.0
-                self.stag +=1
-            if self.stag >= M:
-                self.w_i = wstart - (wstart - wend) * t / MAXITER
-                self.stag = 0
-        
-        self.previous_best_i = self.err_best_i
-
         for i in range(len(self.position_i)):
-            r1 = random()
-            r2 = random()
-
+            r1=random()
+            r2=random()
+            
             vel_cognitive = c1 * r1 * (self.pos_best_i[i] - self.position_i[i])
             vel_social    = c2 * r2 * (pos_best_g[i]      - self.position_i[i])
-            self.velocity_i[i] = self.w_i * self.velocity_i[i] + vel_cognitive + vel_social
-            
+            self.velocity_i[i] = w0 * self.velocity_i[i] + vel_cognitive + vel_social
+
             is_row_dim = (i % 2 == 0)
             v_max = NX * 0.2 if is_row_dim else NY * 0.2
             self.velocity_i[i] = max(-v_max, min(v_max, self.velocity_i[i]))
 
     # update the particle position based off new velocity updates
-    def update_position(self):
-
+    def update_position(self):  # CHANGED: added obs_pos, grid_size
         for i in range(len(self.position_i)):
             self.position_i[i] = self.position_i[i] + self.velocity_i[i]
 
@@ -242,18 +221,17 @@ class Particle:
         #     self.position_i[i] = int(round(self.position_i[i]))
         # self.position_i = resolve_conflicts(self.position_i, outer_cells)
 
+            # if self.position_i[i] > bounds[i][1]:
+            #     self.position_i[i] = bounds[i][1]
+            # if self.position_i[i] < bounds[i][0]:
+            #     self.position_i[i] = bounds[i][0]
 
-        #     if self.position_i[i] > bounds[i][1]:
-        #         self.position_i[i] = bounds[i][1]
-        #     if self.position_i[i] < bounds[i][0]:
-        #         self.position_i[i] = bounds[i][0]
-
-        #     self.position_i[i] = int(round(self.position_i[i]))  # CHANGED: round to integer cell index
+            # self.position_i[i] = int(round(self.position_i[i]))  # CHANGED: round to integer cell index
 
         # self.position_i = resolve_conflicts(self.position_i, obs_pos, grid_size)  # CHANGED: fix conflicts
 
 
-def minimize(costFunc, verbose=False):
+def minimize(costFunc, w=0.9, u=1.0005, verbose=False):
     start = time.time()
 
     outer_cells  = get_outer_cells()   # border cells excluding obstacles
@@ -262,13 +240,21 @@ def minimize(costFunc, verbose=False):
     err_best_g = float('inf')                 # best error for group
     pos_best_g = []            # continuous (row, col)
     pos_best_g_discrete = []   # outer cell indices → passed to DARP
-    
+
     history = []
 
     # establish the swarm
     swarm = []
-    for j in range(0, NUM_PARTICLES):
+    for i in range(0, NUM_PARTICLES):
         swarm.append(Particle(outer_cells, outer_coords))
+
+    # intial particle positions
+    # print("\nInitial particle positions (outer cell indices):")
+    # for i, particle in enumerate(swarm):
+    #     real_positions = [outer_cells[int(p)] for p in particle.position_i]
+    #     real_positions_brac = [(p // NY, p % NY) for p in real_positions]
+    #     print(f"  Particle {i+1}: {real_positions_brac}")
+    # print()
 
     # begin optimization loop
     i = 0
@@ -286,14 +272,17 @@ def minimize(costFunc, verbose=False):
         if verbose:
             print(f'iter: {i+1:>4d}, best solution: {err_best_g:10.6f}')
 
+        w0 = w * (u ** (-i))
+        w0 = min(1.0, max(0.0, w0))
+
         # cycle through swarm and update velocities and position
         for j in range(NUM_PARTICLES):
-            swarm[j].update_velocity(pos_best_g,i)
+            swarm[j].update_velocity(pos_best_g, w0)
             swarm[j].update_position()  # CHANGED: pass obs_pos, grid_size
 
         i += 1
         history.append(err_best_g)
-        
+
     converge_iter = None
     for idx, val in enumerate(history):
         if val == err_best_g:
@@ -325,8 +314,8 @@ if __name__ == "__main__":
 
     # bounds = [(0, GRID_SIZE - 1)] * NUM_ROBOTS
 
-    best_fitness, best_positions, pso_time, history, converge_iter = minimize(costFunc = darp_cost, verbose = True)
-    
+    best_fitness, best_positions, pso_time, history, converge_iter = minimize( costFunc = darp_cost, verbose = True) #return err_best_g, pos_best_g, pso_time
+
     outer_cells = get_outer_cells()
     real_positions = [outer_cells[int(p)] for p in best_positions]
     real_positions_brac = [(p // NY, p % NY) for p in real_positions]
@@ -336,4 +325,4 @@ if __name__ == "__main__":
     print(f"PSO search time               : {pso_time:.3f} seconds")
     print(f"Iterations to converge        : {converge_iter}")
 
-    final_run(best_positions, visualize=True)  
+    final_run(best_positions, visualize=True)

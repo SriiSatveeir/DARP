@@ -22,7 +22,7 @@ variants = {
 
 
 # --- Experiment settings ------------------------------------------------------
-NUM_RUNS = 500 # number of repeated runs per benchmark
+NUM_RUNS = 10 # number of repeated runs per benchmark use 500
 
 # func_name = "sphere"  # benchmark function name
 # func_name = "rosenbrock"  # benchmark function name

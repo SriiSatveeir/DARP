@@ -3,11 +3,11 @@ import random as rnd
 from pso import minimize as spso_minimize
 from c_pso import minimize as cpso_minimize
 from gl_pso import minimize as glbest_minimize
-from i_pso import minimize as ipso_minimize
+from i_pso_2008 import minimize as ipso_minimize
 from LAIW_pso import minimize as laiw_minimize
 from darp_cost_pso import darp_cost
-from pso_parameter import NX, NY
-from darp_cost_pso import darp_cost, get_outer_cells
+from pso_parameter import NY, MAXITER, FAILURE_PENALTY
+from darp_cost_pso import darp_cost, get_outer_cells, validate_config
 
 # --- Variant registry ---------------------------------------------------------
 variants = {
@@ -18,12 +18,13 @@ variants = {
     "LAIW":   laiw_minimize,
 }
 
-NUM_RUNS = 10  # change to 100 for full experiment
+NUM_RUNS = 15  # change to 100 for full experiment
 
 # --- Run experiment -----------------------------------------------------------
 all_results = {}
 
 outer_cells = get_outer_cells()
+validate_config(outer_cells)
 
 for name, minimize_fn in variants.items():
     print(f"\n{'='*50}")
@@ -34,6 +35,9 @@ for name, minimize_fn in variants.items():
     run_times    = []
     run_converge = []
     run_positions = []
+    run_gen = []
+
+    threshold = FAILURE_PENALTY * 0.95
 
     for run in range(NUM_RUNS):
         # Activate this to activate reproduciblity
@@ -50,44 +54,60 @@ for name, minimize_fn in variants.items():
         run_converge.append(converge_iter)
         run_positions.append(best_positions)
 
-        real_positions = [outer_cells[int(p)] for p in best_positions]
-        real_positions_brac = [(p // NY, p % NY) for p in real_positions]
+        gen = next((i+1 for i, f in enumerate(history) if f < threshold), MAXITER)  # define based on acceptable mission time
+        run_gen.append(gen)
+
+
+        real_positions = [outer_cells[int(p)] for p in best_positions] # converts PSO's index-space positions → actual grid cell numbers e.g. [3, 194, 210]
+        real_positions_brac = [(p // NY, p % NY) for p in real_positions] # real_positions_brac = [(p // NY, p % NY) for p in real_positions] converts flat cell numbers → (row, col) pairs
+                                                                            # 3   → (0, 3)
+                                                                            # 194 → (12, 14)
+                                                                            # 210 → (14, 0)
 
         print(f"  run{run+1:>3d}: fitness = {best_fitness:.2f}, " f"time = {pso_time:.3f} sec, converge_iter = {converge_iter}, " f" optimal intial positions = {real_positions_brac}")
 
     min_fitness = min(run_fitness)
     candidates = [
     i for i in range(NUM_RUNS)
-    if abs(run_fitness[i] - min_fitness) < 1e-6
+    if abs(run_fitness[i] - min_fitness) <= min_fitness * 1e-6
     ]
 
     best_run_idx = min(candidates, key=lambda i: (run_converge[i], run_times[i]))
     
     best_positions    = run_positions[best_run_idx]
     best_converge     = run_converge[best_run_idx]
+    
+    success_rate = sum(1 for f in run_fitness if f <= threshold) / len(run_fitness)
 
 
-    all_results[name] = {
-        "Best Fitness (s)":     run_fitness[best_run_idx],
-        "PSO Time Mean (s)":    np.mean(run_times),
-        "PSO Time Std (s)":     np.std(run_times),
-        "Converge Iter Mean":   np.mean(run_converge),
-        "Converge Iter Std":    np.std(run_converge),
-        "Best Run":             best_run_idx + 1,
-        "Best Converge Iter":   best_converge,
-        "Best Position":        best_positions,
+    all_results[name] = results = {
+        "Max Fitness": np.max(run_fitness),
+        "Min Fitness": np.min(run_fitness),
+        "Mean Fitness": np.mean(run_fitness),
+        "Median Fitness": np.median(run_fitness),
+        "Std Fitness": np.std(run_fitness),
+        "Mean PSO Time": np.mean(run_times),
+        "Mean Gen": np.mean(run_gen),
+        "Median Convergence Iter": np.median(run_converge),
+        "success_rate": success_rate,
+
+        "Best Position": best_positions,
+        "Best Run": best_run_idx + 1,
+        "Best Fitness (s)": min_fitness,
     }
 
 
 # --- Print summary ------------------------------------------------------------
 metrics = [
-    "Best Fitness (s)",
-    "PSO Time Mean (s)",
-    "PSO Time Std (s)",
-    "Converge Iter Mean",
-    "Converge Iter Std",
-    "Best Run",
-    "Best Converge Iter",
+    "Max Fitness",
+        "Min Fitness",
+        "Mean Fitness",
+        "Median Fitness",
+        "Std Fitness",
+        "Mean PSO Time",
+        "Mean Gen",
+        "Median Convergence Iter",
+        "success_rate",
 ]
 
 print(f"\n\n{'='*60}\nPSO PERFORMANCE SUMMARY\n{'='*60}")

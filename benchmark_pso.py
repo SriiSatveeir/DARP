@@ -112,3 +112,22 @@ def minimize(costFunc, bounds, num_particles, maxiter, verbose=False):
     return err_best_g, pos_best_g, pso_time, history
 
 #--- END ----------------------------------------------------------------------+
+
+# i = 0
+# while i < maxiter:
+
+#     for j in range(0, num_particles):
+#         swarm[j].evaluate(costFunc)
+#         if swarm[j].err_i < err_best_g:
+#             pos_best_g = list(swarm[j].position_i)
+#             err_best_g = float(swarm[j].err_i)
+
+#     if verbose:
+#         print(f'iter: {i+1:>4d}, best solution: {err_best_g:10.6f}')
+
+#     for j in range(0, num_particles):
+#         swarm[j].update_velocity(pos_best_g, bounds)
+#         swarm[j].update_position(bounds)
+
+#     i += 1
+#     history.append(err_best_g)
