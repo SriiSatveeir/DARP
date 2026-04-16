@@ -39,7 +39,7 @@ class Particle:
                     
     # update new particle velocity
     def update_velocity(self,pos_best_g, bounds):
-        w=0.5       # constant inertia weight (how much to weigh the previous velocity)
+        w=0.5       # constant inertia weight 
         c1=1        # cognative constant
         c2=2        # social constant
         
@@ -54,7 +54,7 @@ class Particle:
             v_max = (bounds[i][1] - bounds[i][0]) * 1
             self.velocity_i[i] = max(-v_max, min(v_max, self.velocity_i[i]))
 
-    # update the particle position based off new velocity updates
+    # update the particle position 
     def update_position(self,bounds):
         for i in range(num_dimensions):
             self.position_i[i]=self.position_i[i]+self.velocity_i[i]

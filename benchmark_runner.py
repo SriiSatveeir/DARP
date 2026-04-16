@@ -13,7 +13,7 @@ from benchmark_functions import sphere, sphere_bounds, sphere_dim, rosenbrock, r
 
 # --- Variant registry ---------------------------------------------------------
 variants = {
-    "sPSO":   spso_minimize,
+    # "sPSO":   spso_minimize,
     # "cPSO":   cpso_minimize,
     # "GLBest": glbest_minimize,
     # "IPSO":   ipso_minimize,
@@ -22,11 +22,11 @@ variants = {
 
 
 # --- Experiment settings ------------------------------------------------------
-NUM_RUNS = 10 # number of repeated runs per benchmark use 500
+NUM_RUNS = 100 # number of repeated runs per benchmark use 500
 
-# func_name = "sphere"  # benchmark function name
+func_name = "sphere"  # benchmark function name
 # func_name = "rosenbrock"  # benchmark function name
-func_name = "rastrigin"  # benchmark function name
+# func_name = "rastrigin"  # benchmark function name
 
 num_particles = 80
 maxiter = 1000

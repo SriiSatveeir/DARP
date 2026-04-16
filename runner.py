@@ -11,14 +11,14 @@ from darp_cost_pso import darp_cost, get_outer_cells, validate_config
 
 # --- Variant registry ---------------------------------------------------------
 variants = {
-    "sPSO":   spso_minimize,
-    "cPSO":   cpso_minimize,
-    "GLBest": glbest_minimize,
-    "IPSO":   ipso_minimize,
-    "LAIW":   laiw_minimize,
+    # "sPSO":   spso_minimize,
+    # "cPSO":   cpso_minimize,
+    # "GLBest": glbest_minimize,
+    # "IPSO":   ipso_minimize,
+    # "LAIW":   laiw_minimize,
 }
 
-NUM_RUNS = 15  # change to 100 for full experiment
+NUM_RUNS = 30  # change to 30 for full experiment
 
 # --- Run experiment -----------------------------------------------------------
 all_results = {}
@@ -37,7 +37,7 @@ for name, minimize_fn in variants.items():
     run_positions = []
     run_gen = []
 
-    threshold = FAILURE_PENALTY * 0.95
+    threshold = 3617 #3617 #3610
 
     for run in range(NUM_RUNS):
         # Activate this to activate reproduciblity
@@ -54,7 +54,7 @@ for name, minimize_fn in variants.items():
         run_converge.append(converge_iter)
         run_positions.append(best_positions)
 
-        gen = next((i+1 for i, f in enumerate(history) if f < threshold), MAXITER)  # define based on acceptable mission time
+        gen = next((i+1 for i, f in enumerate(history) if f <= threshold), MAXITER)  # define based on acceptable mission time
         run_gen.append(gen)
 
 

@@ -44,25 +44,25 @@ import numpy as np
 
 #--- HELPERS (new, not in Nathan's original) ----------------------------------+
 
-def build_outer_coords(outer_cells): #Convert the outer cell indices to (row,col) format
+def build_outer_coords(outer_cells): # Outer cell indices to (row,col) format
     coords = []
     for cell in outer_cells:
-        row = cell // NY
+        row = cell // NY 
         col = cell % NY
         coords.append((row,col))
     return np.array(coords)
 
 def snap_to_outer_cells(robot_positions, outer_coords, outer_cells): #assign outer cells to the robot
-    taken = set()
+    taken = set() #Track already set outer cells
     result = []
 
     for pos in robot_positions:
         row, col = pos
-        distances = np.sqrt( (outer_coords[:, 0] - row) ** 2 + (outer_coords[:, 1] - col) ** 2) #distance from estimated position to cell
+        distances = np.sqrt( (outer_coords[:, 0] - row) ** 2 + (outer_coords[:, 1] - col) ** 2) #distance from estimated position to the outer cell
 
-        for idx in np.argsort(distances): #sort in ascending order
+        for idx in np.argsort(distances): #sort the outer cells by closest distance
                 idx = int(idx)
-                if idx not in taken:
+                if idx not in taken: #assign the closest outer cell not taken
                     result.append(idx)
                     taken.add(idx)
                     break

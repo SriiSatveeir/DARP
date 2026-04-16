@@ -18,10 +18,12 @@ from pso_parameter import NX, NY, OBS_POS, NUM_ROBOTS, PORTIONS, NOT_EQUAL, DARP
 # FAILURE_PENALTY = 1000.0            # returned if DARP fails or positions are invalid
 
 # # -----------------------------------------------------------------------------
-OBS_SET    = set(OBS_POS)
+OBS_SET    = set(OBS_POS) #obstacle positions
+
+#obtain all outer boundary cells from area
 OUTER_CELLS = [c for c in range(NX * NY)
                if (c // NY in (0, NX-1) or c % NY in (0, NY-1))
-               and c not in OBS_SET]
+               and c not in OBS_SET] # remove any cell with obstacle
 
 def get_outer_cells():
     return OUTER_CELLS
